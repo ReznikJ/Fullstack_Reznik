@@ -1,79 +1,53 @@
-import { useEffect, useState } from 'react'
+const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
-function App() {
-    const [auta, setAuta] = useState([]);
-    // Stavy pro formulář
-    const [znacka, setZnacka] = useState('');
-    const [model, setModel] = useState('');
-    const [cena, setCena] = useState('');
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-    // 1. Načtení aut (GET)
-    const nactiAuta = () => {
-        fetch('http://localhost:5000/api/auta')
-            .then(res => res.json())
-            .then(data => setAuta(data))
-            .catch(err => console.error("Chyba při načítání:", err));
+const DATA_FILE = path.join(__dirname, 'auta.json');
+
+const nactiData = () => {
+    if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, '[]');
+    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+};
+const ulozData = (data) => fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+
+app.get('/api/auta', (req, res) => {
+    res.json(nactiData());
+});
+
+app.post('/api/auta', (req, res) => {
+    const auta = nactiData();
+    const noveAuto = {
+        id: Date.now(),
+        prodano: false,
+        ...req.body
     };
+    auta.push(noveAuto);
+    ulozData(auta);
+    res.json(noveAuto);
+});
 
-    useEffect(() => {
-        nactiAuta();
-    }, []);
+app.delete('/api/auta/:id', (req, res) => {
+    const auta = nactiData().filter(a => a.id !== parseInt(req.params.id));
+    ulozData(auta);
+    res.json({ message: "Smazáno" });
+});
 
-    // 2. Přidání auta (POST)
-    const pridejAuto = (e) => {
-        e.preventDefault(); // Zamezí znovunačtení stránky
 
-        // Jednoduchá validace (bod ze zadání: "pokročilé věci")
-        if (!znacka || !model || !cena) {
-            alert("Vyplň všechna pole!");
-            return;
-        }
+app.put('/api/auta/:id', (req, res) => {
+    let auta = nactiData();
+    const index = auta.findIndex(a => a.id === parseInt(req.params.id));
+    if (index !== -1) {
+        auta[index] = { ...auta[index], ...req.body, id: auta[index].id };
+        ulozData(auta);
+        res.json(auta[index]);
+    } else {
+        res.status(404).send("Auto nenalezeno");
+    }
+});
 
-        const noveAuto = { znacka, model, cena: Number(cena) };
-
-        fetch('http://localhost:5000/api/auta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(noveAuto)
-        })
-            .then(() => {
-                nactiAuta(); // Refresh seznamu
-                setZnacka(''); setModel(''); setCena(''); // Vymazání formuláře
-            });
-    };
-
-    // 3. Smazání auta (DELETE)
-    const smazAuto = (id) => {
-        fetch(`http://localhost:5000/api/auta/${id}`, { method: 'DELETE' })
-            .then(() => nactiAuta());
-    };
-
-    return (
-        <div style={{ maxWidth: '600px', margin: '40px auto', fontFamily: 'sans-serif' }}>
-            <h1>🚗 Evidence Aut</h1>
-
-            {/* Formulář pro přidání */}
-            <form onSubmit={pridejAuto} style={{ background: '#f4f4f4', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h3>Přidat nové auto</h3>
-                <input placeholder="Značka" value={znacka} onChange={e => setZnacka(e.target.value)} />
-                <input placeholder="Model" value={model} onChange={e => setModel(e.target.value)} />
-                <input placeholder="Cena" type="number" value={cena} onChange={e => setCena(e.target.value)} />
-                <button type="submit">Uložit auto</button>
-            </form>
-
-            {/* Seznam aut */}
-            <div>
-                {auta.map(auto => (
-                    <div key={auto.id} style={{ borderBottom: '1px solid #ddd', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                        <div>
-                            <strong>{auto.znacka} {auto.model}</strong> - {auto.cena} Kč
-                        </div>
-                        <button onClick={() => smazAuto(auto.id)} style={{ color: 'red' }}>Smazat</button>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
-export default App
+app.listen(5000, () => console.log("Backend běží na portu 5000"));
