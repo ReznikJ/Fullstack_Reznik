@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "znacka": "Škoda",
+    "model": "Octavia",
+    "rok_vyroby": 2020,
+    "palivo": "Nafta",
+    "cena": 450000
+  },
+  {
+    "id": 2,
+    "znacka": "Tesla",
+    "model": "Model 3",
+    "rok_vyroby": 2022,
+    "palivo": "Elektro",
+    "cena": 990000
+  }
+]
